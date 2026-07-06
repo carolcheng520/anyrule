@@ -836,6 +836,7 @@ def publish(repo: Path, message: str, *, push: bool) -> None:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check-only", action="store_true", help="validate and report whether the rule would change")
+    parser.add_argument("--no-commit", action="store_true", help="write the rule update but leave commit and push to the caller")
     parser.add_argument("--no-push", action="store_true", help="commit locally but do not push")
     parser.add_argument(
         "--commit-message",
@@ -847,6 +848,10 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
+    if args.check_only and args.no_commit:
+        print("error: --check-only and --no-commit cannot be used together", file=sys.stderr)
+        return 1
+
     repo = repo_root()
     target = repo / TARGET_RELATIVE
 
@@ -860,7 +865,7 @@ def main() -> int:
             validate_against_upstream(candidate, upstream)
             changed = update_target(target, candidate, check_only=args.check_only)
             print(f"upstream main: {upstream_sha}")
-            if args.check_only or not changed:
+            if args.check_only or args.no_commit or not changed:
                 return 0
             publish(repo, args.commit_message, push=not args.no_push)
         return 0

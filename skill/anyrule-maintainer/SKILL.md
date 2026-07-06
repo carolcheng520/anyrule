@@ -1,6 +1,6 @@
 ---
 name: anyrule-maintainer
-description: Guarded periodic maintenance for the user's AnyRule/Anywhere repositories. Use when Codex needs to update and publish the maintained AnyRule scripts: refresh rules/wechat.arrs, push it, sync sibling Anywhere source repositories, generate CN direct enhancement rules, push them, and verify GitHub remote parity.
+description: Guarded periodic maintenance for the user's AnyRule/Anywhere repositories. Use when Codex needs to update and publish the maintained AnyRule scripts: refresh rules/wechat.arrs, update Tencent Sports MITM rules, sync sibling Anywhere source repositories, generate CN direct enhancement rules, push changes, and verify GitHub remote parity.
 ---
 
 # AnyRule Maintainer
@@ -48,6 +48,7 @@ The workflow is intentionally strict:
 - Do not stash, force-push, rebase, or clean files automatically.
 - Stop if any repository is on the wrong branch, has the wrong remote, or has unrelated local changes.
 - Update WeChat first, push it, and verify GitHub `main` equals local `HEAD`.
+- Update Tencent Sports MITM after WeChat, push it, and verify GitHub `main` equals local `HEAD`.
 - Sync the sibling repositories with `scripts/sync_github_repos.py`.
 - Generate CN direct enhancement rules, push them, and verify GitHub `main` equals local `HEAD`.
 - Treat no-op generation as success when the worktree and remote are already in sync.
@@ -70,6 +71,7 @@ Keep these checks in mind after editing or cloning this skill:
 - `--check-only` intentionally fails while the new `skill/` files are untracked or otherwise dirty. Commit and push the skill before using the live maintenance workflow.
 - After cloning on another machine, run the installer once before expecting `$anyrule-maintainer` to trigger automatically.
 - When Git reports both ahead and behind counts for an upstream mirror, inspect the diagnostic output before resetting. A `no merge base` message usually means GitHub history was force-updated or replaced.
+- Tencent Sports updates rely on `scripts/update_tencent_sports_mitm.py --check-only` during preflight and `--no-commit` during live maintenance; commit and push are intentionally owned by this maintainer workflow.
 
 ## Adversarial Review
 
@@ -81,6 +83,7 @@ The review checks that:
 - Skill files are tracked by Git, so another machine can download them.
 - The Codex symlink points at the repo-local skill when it exists.
 - Skill files do not contain machine-specific absolute paths.
+- The Tencent Sports updater script required by the maintainer exists.
 - Existing validator dependency availability is reported explicitly.
 
 ## Expected Layout

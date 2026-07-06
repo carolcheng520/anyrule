@@ -16,8 +16,10 @@ from pathlib import Path
 
 MAIN_BRANCH = "main"
 WECHAT_COMMIT = "Update WeChat Anywhere rules"
+TENCENT_SPORTS_COMMIT = "Update Tencent Sports MITM rules"
 CN_COMMIT = "Update CN direct enhancement rules"
 WECHAT_ALLOWED = {"rules/wechat.arrs"}
+TENCENT_SPORTS_ALLOWED = {"mitm/TencentSportsAdBlock.amrs"}
 CN_ALLOWED = {"rules/geosite-cn-direct-delta.arrs", "rules/geoip-cn-ipv6.arrs"}
 SKILL_NAME = "anyrule-maintainer"
 SKILL_FILES = {
@@ -25,6 +27,9 @@ SKILL_FILES = {
     "skill/anyrule-maintainer/SKILL.md",
     "skill/anyrule-maintainer/agents/openai.yaml",
     "skill/anyrule-maintainer/scripts/run_anyrule_maintenance.py",
+}
+REQUIRED_REPO_SCRIPTS = {
+    "scripts/update_tencent_sports_mitm.py",
 }
 ABSOLUTE_PATH_RE = re.compile("/" + "Users" + r"/[^\s`'\"]+")
 ROOT_OVERRIDE_ENV = "ANYRULE_MAINTAINER_ROOT"
@@ -169,6 +174,7 @@ def run_preflight_tests(root: Path) -> None:
     run(["python3", "scripts/test_update_wechat_arrs.py"], root)
     run(["python3", "scripts/test_generate_cn_direct_enhancements.py"], root)
     run(["python3", "scripts/sync_github_repos.py", "--self-test"], root)
+    run(["python3", "scripts/update_tencent_sports_mitm.py", "--check-only"], root)
 
 
 def run_child_script(cmd: list[str], cwd: Path, env: dict[str, str]) -> None:
@@ -289,6 +295,12 @@ def adversarial_check(root: Path) -> int:
         not missing,
         "all expected skill files exist" if not missing else ", ".join(missing),
     )
+    missing_scripts = [path for path in sorted(REQUIRED_REPO_SCRIPTS) if not (root / path).is_file()]
+    failures += print_review(
+        "required repo scripts",
+        not missing_scripts,
+        "all maintainer dependency scripts exist" if not missing_scripts else ", ".join(missing_scripts),
+    )
 
     tracked_missing: list[str] = []
     for path in sorted(SKILL_FILES):
@@ -371,6 +383,19 @@ def push_and_verify(repo: RepoSpec) -> None:
     verify_remote_head(repo)
 
 
+def run_generation_phase(repo: RepoSpec, cmd: list[str], allowed: set[str], message: str) -> None:
+    head_before = git(repo, ["rev-parse", "HEAD"])
+    run(cmd, repo.path)
+    head_after = git(repo, ["rev-parse", "HEAD"])
+    if head_after != head_before:
+        raise MaintenanceError(f"{message}: generator changed HEAD; commit and push must stay in maintainer")
+
+    if commit_allowed_changes(repo, allowed, message):
+        push_and_verify(repo)
+    else:
+        verify_remote_head(repo)
+
+
 def verify_all_synced(repos: list[RepoSpec]) -> None:
     for repo in repos:
         require_clean(repo)
@@ -382,20 +407,29 @@ def verify_all_synced(repos: list[RepoSpec]) -> None:
 def run_workflow(root: Path) -> None:
     anyrule = RepoSpec("anyrule", root, "git@github.com:carolcheng520/anyrule.git")
 
-    run(["python3", "scripts/update_wechat_arrs.py"], root)
-    if commit_allowed_changes(anyrule, WECHAT_ALLOWED, WECHAT_COMMIT):
-        push_and_verify(anyrule)
-    else:
-        verify_remote_head(anyrule)
+    run_generation_phase(
+        anyrule,
+        ["python3", "scripts/update_wechat_arrs.py"],
+        WECHAT_ALLOWED,
+        WECHAT_COMMIT,
+    )
+
+    run_generation_phase(
+        anyrule,
+        ["python3", "scripts/update_tencent_sports_mitm.py", "--no-commit"],
+        TENCENT_SPORTS_ALLOWED,
+        TENCENT_SPORTS_COMMIT,
+    )
 
     run(["python3", "scripts/sync_github_repos.py"], root)
     verify_all_synced(repo_specs(root))
 
-    run(["python3", "scripts/generate_cn_direct_enhancements.py"], root)
-    if commit_allowed_changes(anyrule, CN_ALLOWED, CN_COMMIT):
-        push_and_verify(anyrule)
-    else:
-        verify_remote_head(anyrule)
+    run_generation_phase(
+        anyrule,
+        ["python3", "scripts/generate_cn_direct_enhancements.py"],
+        CN_ALLOWED,
+        CN_COMMIT,
+    )
 
     verify_all_synced(repo_specs(root))
 
