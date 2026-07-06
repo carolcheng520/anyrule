@@ -1,10 +1,10 @@
 # PURPOSE: Filtered China geosite direct-routing delta not covered by built-in CN, existing direct rules, ADBlock, or MITM reject routing rules.
 # LINK: https://raw.githubusercontent.com/carolcheng520/anyrule/main/rules/geosite-cn-direct-delta.arrs
-# LAST-UPDATED: 2026-06-29
+# LAST-UPDATED: 2026-07-06
 # SUGGESTED-ACTION: DIRECT
-# RULES: 3415
+# RULES: 3444
 # SOURCE: anywhere-rules/rules/common/Geosite_CN.arrs
-# SOURCE-SHA256: 19f935ef5ee2bb4eb589051cddab72987268e0f12ed70c2ca6aa32ad76d0e1db
+# SOURCE-SHA256: 4e63c99afc0a260a19e97cd36b5497373cd59ef341a01ddc9366d692727a879d
 # EXCLUDED-REJECT-SOURCES:
 # - AmapReject.arrs: anywhere-rules/mitm/AmapReject.arrs
 # - BilibiliReject.arrs: anywhere-rules/mitm/BilibiliReject.arrs
@@ -12,7 +12,7 @@
 # - XiaohongshuReject.arrs: anywhere-rules/mitm/XiaohongshuReject.arrs
 # - wechat-ads.arrs: anyrule/rules/wechat-ads.arrs
 # GENERATED-BY: scripts/generate_cn_direct_enhancements.py
-# SKIPPED: adblock-covered=2, baseline-covered=1391
+# SKIPPED: adblock-covered=2, baseline-covered=1399
 
 name = Geosite CN Direct Delta
 2, 00cdn.com
@@ -235,6 +235,7 @@ name = Geosite CN Direct Delta
 2, 6-u.com
 2, 61.com
 2, 6655.com
+2, 66rpg.com
 2, 66wz.com
 2, 68h5.com
 2, 6rooms.com
@@ -245,6 +246,7 @@ name = Geosite CN Direct Delta
 2, 7230.com
 2, 72byte.com
 2, 72whys.com
+2, 777ppt.com
 2, 7down.com
 2, 7k7k.com
 2, 7moor-fs1.com
@@ -311,6 +313,7 @@ name = Geosite CN Direct Delta
 2, acwifi.net
 2, acwing.com
 2, admin5.com
+2, admincdn.com
 2, adxvip.com
 2, afdian.com
 2, afdian.net
@@ -369,6 +372,7 @@ name = Geosite CN Direct Delta
 2, anjukestatic.com
 2, anlaiye.com
 2, anmo.com
+2, anquan
 2, anquan.org
 2, anquanke.com
 2, anruan.com
@@ -473,6 +477,7 @@ name = Geosite CN Direct Delta
 2, bdydns.net
 2, bearychat.com
 2, beckyroom.com
+2, beie.org
 2, beihaidc.com
 2, beijing-lipin.com
 2, beisen.com
@@ -525,6 +530,7 @@ name = Geosite CN Direct Delta
 2, blyun.com
 2, bobbns.com
 2, bobo.com
+2, boce.com
 2, bochaai.com
 2, boe.com
 2, bohejiasuqi.com
@@ -602,6 +608,7 @@ name = Geosite CN Direct Delta
 2, cfzq.com
 2, cgames.com
 2, cgws.com
+2, cgyouxi.com
 2, ch.com
 2, chachaba.com
 2, chaindd.com
@@ -715,6 +722,7 @@ name = Geosite CN Direct Delta
 2, cn.pool.ntp.org
 2, cnanzhi.com
 2, cnbksy.com
+2, cnblogs.vip
 2, cnepub.com
 2, cnfol.com
 2, cnfolimg.com
@@ -769,6 +777,7 @@ name = Geosite CN Direct Delta
 2, cqvip.com
 2, cr-cts.com
 2, cr173.com
+2, cravatar.com
 2, crggcn.com
 2, crscm.com
 2, crsky.com
@@ -883,6 +892,8 @@ name = Geosite CN Direct Delta
 2, dianwannan.com
 2, dianwoda.com
 2, dianzhenkeji.com
+2, didachuxing.com
+2, didapinche.com
 2, dingdachuxing.com
 2, dingdatech.com
 2, dingxiang-inc.com
@@ -1048,6 +1059,7 @@ name = Geosite CN Direct Delta
 2, ezviz.com
 2, f.cx
 2, fa-part.com
+2, faceid.com
 2, fadfunds.com
 2, faloo.com
 2, famulei.com
@@ -1300,6 +1312,7 @@ name = Geosite CN Direct Delta
 2, gugudata.com
 2, guigu.org
 2, guodu.com
+2, guojibk.com
 2, guokr.com
 2, guokr.net
 2, guoocang.com
@@ -1322,6 +1335,7 @@ name = Geosite CN Direct Delta
 2, gzyowin.com
 2, h5uc.com
 2, hack520.com
+2, hackernews.cc
 2, hackhome.com
 2, hackinn.com
 2, hacpai.com
@@ -1794,6 +1808,7 @@ name = Geosite CN Direct Delta
 2, keep.com
 2, kejet.net
 2, kekeniu.com
+2, keniu.com
 2, keruyun.com
 2, kesong.co
 2, ketangpai.com
@@ -1804,6 +1819,7 @@ name = Geosite CN Direct Delta
 2, kidsccshow.com
 2, kimi.com
 2, kimiss.com
+2, kimxz.com
 2, kingdee.com
 2, kinghomechina.com
 2, kingsoft.com
@@ -1830,7 +1846,6 @@ name = Geosite CN Direct Delta
 2, kq7.com
 2, ks-cdn1.com
 2, ks-live.com
-2, kscord.com
 2, kskwai.com
 2, kspkg.com
 2, ksyuncdn.com
@@ -2285,6 +2300,7 @@ name = Geosite CN Direct Delta
 2, onlylady.com
 2, oojsq.com
 2, opdown.com
+2, open-douyin.com
 2, openkylin.top
 2, openlearning.com
 2, openmidas.com
@@ -2462,10 +2478,12 @@ name = Geosite CN Direct Delta
 2, rong360.com
 2, rongechain.com
 2, routewize.com
+2, rrmj.plus
 2, rtbasia.com
 2, ruan8.com
 2, ruby-china.org
 2, rubyconfchina.org
+2, runningcheese.com
 2, runoob.com
 2, ruseer.com
 2, rwkv.com
@@ -2553,6 +2571,7 @@ name = Geosite CN Direct Delta
 2, shmetro.com
 2, shobserver.com
 2, shopss.com
+2, shouji
 2, shoujihuifu.com
 2, shouqianba.com
 2, shoutanjjj.com
@@ -2635,6 +2654,7 @@ name = Geosite CN Direct Delta
 2, staticfile.org
 2, statickksmg.com
 2, stcn.com
+2, stdaily.com
 2, steam302.xyz
 2, steampp.net
 2, sto-express.com
@@ -2784,6 +2804,7 @@ name = Geosite CN Direct Delta
 2, to8to.com
 2, tobosu.com
 2, todesk.com
+2, tol.vip
 2, tom.com
 2, tongdun.net
 2, tongfangpc.com
@@ -2921,6 +2942,7 @@ name = Geosite CN Direct Delta
 2, viviv.com
 2, vobao.com
 2, vpgame.com
+2, vpsvs.com
 2, vrzwk.com
 2, vrzwk.net
 2, vrzwk.top
@@ -2951,6 +2973,7 @@ name = Geosite CN Direct Delta
 2, weavatar.com
 2, webankcdn.net
 2, webgame163.com
+2, webportal.top
 2, webterren.com
 2, wegamedeveloper.com
 2, weicaifu.com
@@ -2964,6 +2987,7 @@ name = Geosite CN Direct Delta
 2, wenkeju.com
 2, wenkub.com
 2, wenmingban.com
+2, wenpai.org
 2, wenshushu.com
 2, wenwo.com
 2, wenxiaozhan.com
@@ -2983,6 +3007,7 @@ name = Geosite CN Direct Delta
 2, win7china.com
 2, win8.net
 2, win8china.com
+2, windfonts.com
 2, windows10zj.com
 2, windows7en.com
 2, windowszj.com
@@ -3015,6 +3040,7 @@ name = Geosite CN Direct Delta
 2, woxihuan.com
 2, woyaogexing.com
 2, woyoo.com
+2, wpcy.com
 2, wps.com
 2, wpsmail.net
 2, wqiis.com
@@ -3091,6 +3117,7 @@ name = Geosite CN Direct Delta
 2, xiayx.com
 2, xiazaiba.com
 2, xiezuocat.com
+2, xihuan
 2, xilu.com
 2, xinchacha.com
 2, xinchong.com
@@ -3268,6 +3295,7 @@ name = Geosite CN Direct Delta
 2, yuantongyizhan.com
 2, yuanzhiyijiantong.com
 2, yuelun.com
+2, yun
 2, yunaq.com
 2, yunba.io
 2, yunda56.com
@@ -3280,6 +3308,7 @@ name = Geosite CN Direct Delta
 2, yunfancdn.com
 2, yunify.com
 2, yunkanpan.com
+2, yunpian.com
 2, yunqishi.net
 2, yunshipei.com
 2, yunxiao.com
