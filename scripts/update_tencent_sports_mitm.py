@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import base64
 import datetime as dt
+import hashlib
 import os
 import re
 import shutil
@@ -34,6 +35,12 @@ EXPECTED_UPSTREAM_PATTERNS = [
     r"^https:\/\/(?:app\.sports\.qq\.com\/(?:feeds\/list|m\/matchAfter\/stats|match\/adBanner)\?|shequ\.sports\.qq\.com\/topic\/detail\?|film\.video\.qq\.com\/x\/sports-vip-channel\/(?:\?.*)?$)",
     r"^https:\/\/(?:app\.sports\.qq\.com\/(?:trpc\.sports_resource\.cgi\.ResourceCGI\/MatchWidgets|vaccess\/trpc\.sports_resource\.cgi\.ResourceCGI\/ColumnWidget|vaccess\/trpc\.sportsbasic\.column\.Column\/GetColumn)|sports\.qq\.com\/sapp\/h5msg\.htm|matchweb\.sports\.qq\.com\/trpc\.dorae\.coin\.Coin\/CoinLayer)(?:\?.*)?$",
 ]
+
+REVIEWED_UPSTREAM_SHA256 = {
+    "TencentSportsAdBlock.sgmodule": "4987d3d24b0947366e950cbfe06b5d4aecd61b6c6bd258d9fe8a354c0615da75",
+    "TencentSportsAdBlock.js": "07ce795cb38bbfc77d771c1eefbb70577d49e44d44c071e27b09dd05bad62427",
+    "TencentSportsFloatBlock.js": "e62e26451ab1f2107d054ab9b311fcdbd13edb3ddedadcec6ef130b3cf9c291f",
+}
 
 REPRESENTATIVE_URLS = [
     "https://app.sports.qq.com/feeds/list?x=1",
@@ -127,7 +134,23 @@ def clone_upstream() -> tuple[tempfile.TemporaryDirectory[str], Path, str]:
     return temp, upstream, sha
 
 
+def file_sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
 def require_supported_upstream(upstream: Path) -> None:
+    for filename, expected_hash in REVIEWED_UPSTREAM_SHA256.items():
+        actual_hash = file_sha256(upstream / filename)
+        if actual_hash != expected_hash:
+            raise UpdateError(
+                f"unreviewed upstream {filename} content: expected {expected_hash}, got {actual_hash}; "
+                "review upstream changes and update this converter before publishing"
+            )
+
     sgmodule = (upstream / "TencentSportsAdBlock.sgmodule").read_text(encoding="utf-8")
     ad_js = (upstream / "TencentSportsAdBlock.js").read_text(encoding="utf-8")
     float_js = (upstream / "TencentSportsFloatBlock.js").read_text(encoding="utf-8")
@@ -656,15 +679,20 @@ const amrs = fs.readFileSync(process.env.AMRS_FILE, "utf8");
 const upstreamDir = process.env.UPSTREAM_DIR;
 const upstreamAd = fs.readFileSync(`${upstreamDir}/TencentSportsAdBlock.js`, "utf8");
 const upstreamFloat = fs.readFileSync(`${upstreamDir}/TencentSportsFloatBlock.js`, "utf8");
-const rules = amrs.split(/\n/)
-  .filter((line) => /^1,/.test(line))
+const allRules = amrs.split(/\n/)
+  .filter((line) => /^[01],/.test(line))
   .map((line) => {
     const parts = line.split(/, /);
     return {
+      phase: parts[0],
       pattern: parts[2],
       script: Buffer.from(parts.slice(3).join(", "), "base64").toString("utf8")
     };
   });
+for (const rule of allRules) {
+  new vm.Script(rule.script);
+}
+const rules = allRules.filter((rule) => rule.phase === "1");
 
 function local(url, body) {
   const matched = rules.filter((rule) => new RegExp(rule.pattern).test(url));
@@ -719,11 +747,19 @@ const cases = [
       topWidget: { b: 1 }
     }
   }],
+  ["feed no-op", upstreamAd, "https://app.sports.qq.com/feeds/list?x=1", {
+    data: {
+      list: [{ id: "keep" }],
+      topItem: [{ id: "hot_my_schedule" }],
+      stats: [{ text: "\u6bd4\u5206" }]
+    }
+  }],
   ["article", upstreamAd, "https://shequ.sports.qq.com/topic/detail?id=1", { data: { adListPB: "x", adList: [1], adInfos: [2], keep: true } }],
   ["vip html", upstreamAd, "https://film.video.qq.com/x/sports-vip-channel/?x=1", "{\"modules\":[{\"moduleId\":\"a\",\"itemDataLists\":[],\"moduleType\":\"module_popup_page\"},{\"moduleId\":\"keep\"}]}"],
   ["match widgets", upstreamFloat, "https://app.sports.qq.com/trpc.sports_resource.cgi.ResourceCGI/MatchWidgets?x=1", { data: { bannerList: [1, 2], keep: true } }],
   ["column widget", upstreamFloat, "https://app.sports.qq.com/vaccess/trpc.sports_resource.cgi.ResourceCGI/ColumnWidget?x=1", { data: { img: "x", jumpData: { param: { title: "a", url: "b" } } } }],
   ["get column", upstreamFloat, "https://app.sports.qq.com/vaccess/trpc.sportsbasic.column.Column/GetColumn?x=1", { data: { forceNotice: [{ id: 100 }, { id: 200 }], newRecommend: [{ id: 100 }, { id: 300 }], keep: true } }],
+  ["get column no-op", upstreamFloat, "https://app.sports.qq.com/vaccess/trpc.sportsbasic.column.Column/GetColumn?x=1", { data: { newRecommend: [{ id: 300 }], keep: true } }],
   ["coin", upstreamFloat, "https://matchweb.sports.qq.com/trpc.dorae.coin.Coin/CoinLayer?x=1", { data: { visible: true } }],
   ["h5", upstreamFloat, "https://sports.qq.com/sapp/h5msg.htm?x=1", "<html>ad</html>"]
 ];
@@ -772,11 +808,17 @@ def update_target(target: Path, candidate: str, *, check_only: bool) -> bool:
 
 
 def publish(repo: Path, message: str, *, push: bool) -> None:
+    changed = git_output(repo, ["status", "--porcelain"])
+    if changed != f" M {TARGET_RELATIVE}":
+        raise UpdateError(f"unexpected worktree changes before commit:\n{changed}")
     run(["git", "diff", "--check"], cwd=repo, capture=False)
     run(["git", "add", str(TARGET_RELATIVE)], cwd=repo, capture=False)
     staged = git_output(repo, ["diff", "--cached", "--name-only"])
     if staged != str(TARGET_RELATIVE):
         raise UpdateError(f"unexpected staged files:\n{staged}")
+    unstaged = git_output(repo, ["diff", "--name-only"])
+    if unstaged:
+        raise UpdateError(f"unexpected unstaged files after staging target:\n{unstaged}")
     run(["git", "commit", "-m", message], cwd=repo, capture=False)
     if push:
         run(["git", "push", "origin", MAIN_BRANCH], cwd=repo, capture=False)
