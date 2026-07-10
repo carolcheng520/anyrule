@@ -1,10 +1,10 @@
 # PURPOSE: Filtered China geosite direct-routing delta not covered by built-in CN, existing direct rules, ADBlock, or MITM reject routing rules.
 # LINK: https://raw.githubusercontent.com/carolcheng520/anyrule/main/rules/geosite-cn-direct-delta.arrs
-# LAST-UPDATED: 2026-07-06
+# LAST-UPDATED: 2026-07-10
 # SUGGESTED-ACTION: DIRECT
-# RULES: 3444
+# RULES: 3453
 # SOURCE: anywhere-rules/rules/common/Geosite_CN.arrs
-# SOURCE-SHA256: 4e63c99afc0a260a19e97cd36b5497373cd59ef341a01ddc9366d692727a879d
+# SOURCE-SHA256: d06aa9799269888732173daf048bd75157373b5ff0f41282cbb6c1b98546614a
 # EXCLUDED-REJECT-SOURCES:
 # - AmapReject.arrs: anywhere-rules/mitm/AmapReject.arrs
 # - BilibiliReject.arrs: anywhere-rules/mitm/BilibiliReject.arrs
@@ -12,7 +12,7 @@
 # - XiaohongshuReject.arrs: anywhere-rules/mitm/XiaohongshuReject.arrs
 # - wechat-ads.arrs: anyrule/rules/wechat-ads.arrs
 # GENERATED-BY: scripts/generate_cn_direct_enhancements.py
-# SKIPPED: adblock-covered=2, baseline-covered=1399
+# SKIPPED: adblock-covered=2, baseline-covered=1409
 
 name = Geosite CN Direct Delta
 2, 00cdn.com
@@ -700,6 +700,7 @@ name = Geosite CN Direct Delta
 2, cjjd19.com
 2, cjol.com
 2, cjsc.com
+2, cjyun.org
 2, ckd.im
 2, ckxx.net
 2, clawhub-mirror.com
@@ -1502,6 +1503,7 @@ name = Geosite CN Direct Delta
 2, hxnews.com
 2, hxsd.com
 2, hybiome.com
+2, hydun.com
 2, hypercachenode.com
 2, hzdtv.tv
 2, hzman.net
@@ -2021,6 +2023,7 @@ name = Geosite CN Direct Delta
 2, lorhf.com
 2, lotpc.com
 2, loupan.com
+2, lovestu.com
 2, lppz.com
 2, lppzimg.com
 2, lrts.me
@@ -2323,6 +2326,7 @@ name = Geosite CN Direct Delta
 2, paidui.com
 2, paipaibang.com
 2, paopaoche.net
+2, papegames.com
 2, papocket.com
 2, paydxm.com
 2, pc6.com
@@ -2721,6 +2725,7 @@ name = Geosite CN Direct Delta
 2, talkingdata.com
 2, talkinggame.com
 2, tangeche.com
+2, tanwan.com
 2, tao123.com
 2, taoche.com
 2, taodocs.com
@@ -2847,6 +2852,7 @@ name = Geosite CN Direct Delta
 2, tuxi.com
 2, tuyoo.com
 2, twscholar.com
+2, twyxh.com
 2, txrjy.com
 2, u-cdn.net
 2, u.tools
@@ -3196,6 +3202,8 @@ name = Geosite CN Direct Delta
 2, yeshen.com
 2, yeshj.com
 2, yesky.com
+2, yeyou.com
+2, yeyoucdn.com
 2, yfcache.com
 2, yfcalc.com
 2, yfcdn.net
@@ -3452,6 +3460,7 @@ name = Geosite CN Direct Delta
 2, zuowenwang.net
 2, zuoyebang.cc
 2, zway.top
+2, zx.com
 2, zxhgroup.com
 2, zxxk.com
 2, zyh365.com
