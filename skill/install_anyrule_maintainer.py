@@ -6,20 +6,20 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
-from dataclasses import dataclass
 from pathlib import Path
 
 
 SKILL_NAME = "anyrule-maintainer"
-MAIN_BRANCH = "main"
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "scripts"))
+
+import sync_github_repos as repository_inventory
 
 
-@dataclass(frozen=True)
-class RepoSpec:
-    name: str
-    path: Path
-    origin_url: str
-    clone_url: str
+MAIN_BRANCH = repository_inventory.MAIN_BRANCH
+RepoSpec = repository_inventory.RepoSpec
+repo_specs = repository_inventory.repo_specs
+REQUIRED_INVENTORY_VERSION = 2
 
 
 class InstallError(Exception):
@@ -41,38 +41,14 @@ def run_git(path: Path, args: list[str]) -> str:
 
 
 def anyrule_root() -> Path:
-    return Path(__file__).resolve().parents[1]
-
-
-def repo_specs(root: Path) -> list[RepoSpec]:
-    parent = root.parent
-    return [
-        RepoSpec(
-            "anyrule",
-            root,
-            "git@github.com:carolcheng520/anyrule.git",
-            "git@github.com:carolcheng520/anyrule.git",
-        ),
-        RepoSpec(
-            "anywhere-rules",
-            parent / "anywhere-rules",
-            "https://github.com/chikacya/anywhere-rules.git",
-            "https://github.com/chikacya/anywhere-rules.git",
-        ),
-        RepoSpec(
-            "Anywhere",
-            parent / "Anywhere",
-            "https://github.com/NodePassProject/Anywhere.git",
-            "https://github.com/NodePassProject/Anywhere.git",
-        ),
-    ]
+    return ROOT
 
 
 def validate_repo(repo: RepoSpec) -> None:
     if not repo.path.is_dir():
         raise InstallError(
             f"{repo.name}: missing repository directory {repo.path}\n"
-            f"Clone it beside anyrule with: git clone {repo.clone_url} {repo.path}"
+            f"Clone it beside anyrule with: git clone {repo.origin_url} {repo.path}"
         )
 
     top_level = Path(run_git(repo.path, ["rev-parse", "--show-toplevel"])).resolve()
@@ -116,6 +92,15 @@ def main() -> int:
     root = anyrule_root()
     if Path.cwd().resolve() != root.resolve():
         print(f"Run this installer from the anyrule repository root: {root}", file=sys.stderr)
+        return 1
+
+    actual_version = getattr(repository_inventory, "REPOSITORY_INVENTORY_VERSION", 0)
+    if actual_version != REQUIRED_INVENTORY_VERSION:
+        print(
+            f"Install failed: repository inventory version {actual_version} is incompatible with "
+            f"installer version {REQUIRED_INVENTORY_VERSION}",
+            file=sys.stderr,
+        )
         return 1
 
     skill_dir = root / "skill" / SKILL_NAME

@@ -1,6 +1,6 @@
 ---
 name: anyrule-maintainer
-description: Guarded periodic maintenance for the user's AnyRule/Anywhere repositories. Use when Codex needs to update and publish the maintained AnyRule scripts: refresh rules/wechat.arrs, update Tencent Sports MITM rules, sync sibling Anywhere source repositories, generate CN direct enhancement rules, push changes, and verify GitHub remote parity.
+description: "Guarded periodic maintenance for the user's AnyRule/Anywhere repositories. Use when Codex needs to update and publish the maintained AnyRule scripts: refresh rules/wechat.arrs, update Tencent Sports MITM rules, sync anywhere-rules, Anywhere, and the private anywhere-ops repository, generate CN direct enhancement rules, push changes, and verify GitHub remote parity."
 ---
 
 # AnyRule Maintainer
@@ -15,7 +15,7 @@ If `$anyrule-maintainer` is not available in Codex after cloning the repository 
 python3 skill/install_anyrule_maintainer.py
 ```
 
-The installer creates or updates `${CODEX_HOME:-$HOME/.codex}/skills/anyrule-maintainer` as a symlink to this repo-local skill. It also checks that sibling repositories exist beside `anyrule`: `anywhere-rules` and `Anywhere`.
+The installer creates or updates `${CODEX_HOME:-$HOME/.codex}/skills/anyrule-maintainer` as a symlink to this repo-local skill. It also checks that sibling repositories exist beside `anyrule`: `anywhere-rules`, `Anywhere`, and `anywhere-ops`.
 
 ## Maintenance Workflow
 
@@ -49,18 +49,19 @@ The workflow is intentionally strict:
 - Stop if any repository is on the wrong branch, has the wrong remote, or has unrelated local changes.
 - Update WeChat first, push it, and verify GitHub `main` equals local `HEAD`.
 - Update Tencent Sports MITM after WeChat, push it, and verify GitHub `main` equals local `HEAD`.
-- Sync the sibling repositories with `scripts/sync_github_repos.py`.
+- Sync `anywhere-rules`, `Anywhere`, and the private `anywhere-ops` repository with `scripts/sync_github_repos.py`.
 - Generate CN direct enhancement rules, push them, and verify GitHub `main` equals local `HEAD`.
 - Treat no-op generation as success when the worktree and remote are already in sync.
 - Use `--isolated` when a disposable upstream mirror is diverged but should not block rule maintenance.
+- Never reset `anyrule` or `anywhere-ops` automatically; local-ahead or diverged history requires manual handling.
 
-If a sibling mirror is clean and intentionally disposable, it can be reset to GitHub `main` explicitly:
+If `anywhere-rules` or `Anywhere` is clean and intentionally disposable, it can be reset to GitHub `main` explicitly:
 
 ```bash
 python3 scripts/sync_github_repos.py --reset-diverged-clean
 ```
 
-This reset mode is opt-in. The default sync still blocks on local-ahead or diverged history.
+This reset mode is opt-in and is not permitted for `anyrule` or `anywhere-ops`. The default sync blocks on local-ahead or diverged history.
 
 ## First-Run Lessons
 
@@ -70,6 +71,7 @@ Keep these checks in mind after editing or cloning this skill:
 - The installer should create `${CODEX_HOME:-$HOME/.codex}/skills/anyrule-maintainer` as a symlink to the repo-local skill; restart Codex if the skill list was already loaded.
 - `--check-only` intentionally fails while the new `skill/` files are untracked or otherwise dirty. Commit and push the skill before using the live maintenance workflow.
 - After cloning on another machine, run the installer once before expecting `$anyrule-maintainer` to trigger automatically.
+- The private `anywhere-ops` repository uses SSH and requires GitHub authentication before installation or isolated maintenance.
 - When Git reports both ahead and behind counts for an upstream mirror, inspect the diagnostic output before resetting. A `no merge base` message usually means GitHub history was force-updated or replaced.
 - Tencent Sports updates rely on `scripts/update_tencent_sports_mitm.py --check-only` during preflight and `--no-commit` during live maintenance; commit and push are intentionally owned by this maintainer workflow.
 
@@ -94,7 +96,8 @@ The scripts use paths relative to the cloned `anyrule` repository, so they work 
 parent/
 ├── anyrule/
 ├── anywhere-rules/
-└── Anywhere/
+├── Anywhere/
+└── anywhere-ops/
 ```
 
 Expected remotes:
@@ -102,5 +105,6 @@ Expected remotes:
 - `anyrule`: `git@github.com:carolcheng520/anyrule.git`
 - `anywhere-rules`: `https://github.com/chikacya/anywhere-rules.git`
 - `Anywhere`: `https://github.com/NodePassProject/Anywhere.git`
+- `anywhere-ops`: `git@github.com:carolcheng520/anywhere-ops.git`
 
 If a repository is missing, clone it manually into the same parent directory before running the workflow.

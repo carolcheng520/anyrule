@@ -14,6 +14,7 @@ from typing import Callable
 
 
 MAIN_BRANCH = "main"
+REPOSITORY_INVENTORY_VERSION = 2
 
 
 @dataclass(frozen=True)
@@ -21,6 +22,8 @@ class RepoSpec:
     name: str
     path: Path
     origin_url: str
+    allow_behind_preflight: bool = False
+    allow_reset_to_origin: bool = False
 
 
 @dataclass(frozen=True)
@@ -99,7 +102,7 @@ def describe_divergence(repo: RepoSpec, ahead: int, behind: int) -> str:
         reason = f"local branch is {behind} commit(s) behind origin/{MAIN_BRANCH}"
 
     hint = ""
-    if ahead > 0 and behind > 0:
+    if ahead > 0 and behind > 0 and repo.allow_reset_to_origin:
         hint = "; if this is a disposable clean upstream mirror, rerun with --reset-diverged-clean"
 
     return (
@@ -142,6 +145,11 @@ def build_sync_plan(repo: RepoSpec, reset_diverged_clean: bool = False) -> SyncP
     ahead, behind = parse_counts(repo)
     if ahead > 0:
         if reset_diverged_clean and behind > 0:
+            if not repo.allow_reset_to_origin:
+                raise SyncError(
+                    f"{describe_divergence(repo, ahead, behind)}; "
+                    "reset to origin is not permitted for this managed repository"
+                )
             old_sha = short_ref(repo, "HEAD")
             return SyncPlan(repo=repo, ahead=ahead, behind=behind, old_sha=old_sha, reset_to_origin=True)
         raise SyncError(describe_divergence(repo, ahead, behind))
@@ -176,13 +184,33 @@ def verify_synced(repo: RepoSpec) -> None:
     require_clean_worktree(repo)
 
 
-def repo_specs() -> list[RepoSpec]:
-    anyrule_root = Path(__file__).resolve().parents[1]
+def repo_specs(anyrule_root: Path | None = None) -> list[RepoSpec]:
+    if anyrule_root is None:
+        anyrule_root = Path(__file__).resolve().parents[1]
+    anyrule_root = anyrule_root.resolve()
     work_root = anyrule_root.parent
     return [
         RepoSpec("anyrule", anyrule_root, "git@github.com:carolcheng520/anyrule.git"),
-        RepoSpec("anywhere-rules", work_root / "anywhere-rules", "https://github.com/chikacya/anywhere-rules.git"),
-        RepoSpec("Anywhere", work_root / "Anywhere", "https://github.com/NodePassProject/Anywhere.git"),
+        RepoSpec(
+            "anywhere-rules",
+            work_root / "anywhere-rules",
+            "https://github.com/chikacya/anywhere-rules.git",
+            allow_behind_preflight=True,
+            allow_reset_to_origin=True,
+        ),
+        RepoSpec(
+            "Anywhere",
+            work_root / "Anywhere",
+            "https://github.com/NodePassProject/Anywhere.git",
+            allow_behind_preflight=True,
+            allow_reset_to_origin=True,
+        ),
+        RepoSpec(
+            "anywhere-ops",
+            work_root / "anywhere-ops",
+            "git@github.com:carolcheng520/anywhere-ops.git",
+            allow_behind_preflight=True,
+        ),
     ]
 
 
@@ -259,6 +287,30 @@ def assert_raises(message: str, fn: Callable[[], object]) -> None:
 def run_self_test() -> int:
     root = Path(tempfile.mkdtemp(prefix="sync-github-repos-", dir="/private/tmp"))
     try:
+        inventory_root = root / "workspace" / "anyrule"
+        inventory = repo_specs(inventory_root)
+        if REPOSITORY_INVENTORY_VERSION != 2:
+            raise SyncError(f"fixture: unexpected repository inventory version: {REPOSITORY_INVENTORY_VERSION}")
+        expected_names = ["anyrule", "anywhere-rules", "Anywhere", "anywhere-ops"]
+        if [repo.name for repo in inventory] != expected_names:
+            raise SyncError(f"fixture: unexpected repository inventory: {[repo.name for repo in inventory]}")
+        inventory_by_name = {repo.name: repo for repo in inventory}
+        if inventory_by_name["anyrule"].allow_behind_preflight:
+            raise SyncError("fixture: anyrule must be current before maintenance")
+        resettable_names = {
+            repo.name for repo in inventory if repo.allow_reset_to_origin
+        }
+        if resettable_names != {"anywhere-rules", "Anywhere"}:
+            raise SyncError(f"fixture: unexpected resettable repositories: {sorted(resettable_names)}")
+        anywhere_ops = inventory[-1]
+        if anywhere_ops.path != inventory_root.parent / "anywhere-ops":
+            raise SyncError(f"fixture: unexpected anywhere-ops path: {anywhere_ops.path}")
+        if anywhere_ops.origin_url != "git@github.com:carolcheng520/anywhere-ops.git":
+            raise SyncError(f"fixture: unexpected anywhere-ops origin: {anywhere_ops.origin_url}")
+        if not anywhere_ops.allow_behind_preflight or anywhere_ops.allow_reset_to_origin:
+            raise SyncError("fixture: anywhere-ops repository policy is unsafe")
+        print("self-test repository inventory: ok")
+
         remote = root / "remote.git"
         seed = root / "seed"
         local = root / "local"
@@ -273,7 +325,12 @@ def run_self_test() -> int:
         run_fixture_git(seed, ["push", "-u", "origin", MAIN_BRANCH])
         run_fixture_git(root, ["clone", str(remote), str(local)])
 
-        repo = RepoSpec("fixture", local, str(remote))
+        repo = RepoSpec(
+            "anywhere-ops",
+            local,
+            str(remote),
+            allow_behind_preflight=True,
+        )
 
         validate_local_repo(repo)
         print("self-test local validation: ok")
@@ -293,6 +350,11 @@ def run_self_test() -> int:
         print("self-test dirty-worktree block: ok")
         (local / "untracked.txt").unlink()
 
+        run_fixture_git(local, ["switch", "-c", "feature"])
+        assert_raises("expected branch main", lambda: validate_local_repo(repo))
+        print("self-test wrong-branch block: ok")
+        run_fixture_git(local, ["switch", MAIN_BRANCH])
+
         configure_fixture_user(local)
         (local / "file.txt").write_text("local\n", encoding="utf-8")
         run_fixture_git(local, ["commit", "-am", "local"])
@@ -308,11 +370,23 @@ def run_self_test() -> int:
             raise SyncError(f"fixture: expected diverged history, got ahead={ahead} behind={behind}")
         print("self-test diverged-history block: ok")
 
-        plan = build_sync_plan(repo, reset_diverged_clean=True)
+        assert_raises(
+            "reset to origin is not permitted",
+            lambda: build_sync_plan(repo, reset_diverged_clean=True),
+        )
+        print("self-test managed-repository reset block: ok")
+
+        resettable_repo = RepoSpec(
+            "fixture",
+            local,
+            str(remote),
+            allow_reset_to_origin=True,
+        )
+        plan = build_sync_plan(resettable_repo, reset_diverged_clean=True)
         if not plan.reset_to_origin:
             raise SyncError("fixture: expected reset plan for clean diverged history")
         apply_plan(plan)
-        verify_synced(repo)
+        verify_synced(resettable_repo)
         print("self-test reset-diverged-clean: ok")
 
         wrong_origin = RepoSpec("fixture", local, "https://example.invalid/repo.git")

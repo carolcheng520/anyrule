@@ -10,11 +10,32 @@ import shutil
 import subprocess
 import sys
 import tempfile
-from dataclasses import dataclass
 from pathlib import Path
 
 
-MAIN_BRANCH = "main"
+ROOT_OVERRIDE_ENV = "ANYRULE_MAINTAINER_ROOT"
+ISOLATED_CHILD_ENV = "ANYRULE_MAINTAINER_ISOLATED_CHILD"
+
+
+def anyrule_root() -> Path:
+    root_override = os.environ.get(ROOT_OVERRIDE_ENV)
+    if root_override:
+        return Path(root_override).expanduser().resolve()
+    return Path(__file__).resolve().parents[3]
+
+
+INVENTORY_ROOT = anyrule_root()
+sys.path.insert(0, str(INVENTORY_ROOT / "scripts"))
+
+import sync_github_repos as repository_inventory
+
+
+MAIN_BRANCH = repository_inventory.MAIN_BRANCH
+RepoSpec = repository_inventory.RepoSpec
+repo_specs = repository_inventory.repo_specs
+REQUIRED_INVENTORY_VERSION = 2
+
+
 WECHAT_COMMIT = "Update WeChat Anywhere rules"
 TENCENT_SPORTS_COMMIT = "Update Tencent Sports MITM rules"
 CN_COMMIT = "Update CN direct enhancement rules"
@@ -29,39 +50,35 @@ SKILL_FILES = {
     "skill/anyrule-maintainer/scripts/run_anyrule_maintenance.py",
 }
 REQUIRED_REPO_SCRIPTS = {
+    "scripts/sync_github_repos.py",
     "scripts/update_tencent_sports_mitm.py",
 }
 ABSOLUTE_PATH_RE = re.compile("/" + "Users" + r"/[^\s`'\"]+")
-ROOT_OVERRIDE_ENV = "ANYRULE_MAINTAINER_ROOT"
-ISOLATED_CHILD_ENV = "ANYRULE_MAINTAINER_ISOLATED_CHILD"
-
-
-@dataclass(frozen=True)
-class RepoSpec:
-    name: str
-    path: Path
-    origin_url: str
-    allow_behind: bool = False
 
 
 class MaintenanceError(Exception):
     pass
 
 
-def anyrule_root() -> Path:
-    root_override = os.environ.get(ROOT_OVERRIDE_ENV)
-    if root_override:
-        return Path(root_override).expanduser().resolve()
-    return Path(__file__).resolve().parents[3]
+def repo_by_name(root: Path, name: str) -> RepoSpec:
+    for repo in repo_specs(root):
+        if repo.name == name:
+            return repo
+    raise MaintenanceError(f"repository inventory is missing {name}")
 
 
-def repo_specs(root: Path) -> list[RepoSpec]:
-    parent = root.parent
-    return [
-        RepoSpec("anyrule", root, "git@github.com:carolcheng520/anyrule.git"),
-        RepoSpec("anywhere-rules", parent / "anywhere-rules", "https://github.com/chikacya/anywhere-rules.git", True),
-        RepoSpec("Anywhere", parent / "Anywhere", "https://github.com/NodePassProject/Anywhere.git", True),
-    ]
+def validate_repository_inventory(root: Path) -> None:
+    actual_version = getattr(repository_inventory, "REPOSITORY_INVENTORY_VERSION", 0)
+    if actual_version != REQUIRED_INVENTORY_VERSION:
+        raise MaintenanceError(
+            f"repository inventory version {actual_version} is incompatible with maintainer version "
+            f"{REQUIRED_INVENTORY_VERSION}; update the anyrule checkout before running maintenance"
+        )
+
+    names = [repo.name for repo in repo_specs(root)]
+    expected = ["anyrule", "anywhere-rules", "Anywhere", "anywhere-ops"]
+    if names != expected:
+        raise MaintenanceError(f"unexpected repository inventory: {names}; expected {expected}")
 
 
 def run(cmd: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:
@@ -140,7 +157,7 @@ def require_sync_state(repo: RepoSpec) -> None:
     ahead, behind = divergence(repo)
     if ahead:
         raise MaintenanceError(describe_divergence(repo, ahead, behind))
-    if behind and not repo.allow_behind:
+    if behind and not repo.allow_behind_preflight:
         raise MaintenanceError(f"{repo.name}: local branch is {behind} commit(s) behind origin/{MAIN_BRANCH}")
 
 
@@ -189,7 +206,7 @@ def run_child_script(cmd: list[str], cwd: Path, env: dict[str, str]) -> None:
 
 
 def maybe_fast_forward_original_anyrule(root: Path) -> None:
-    repo = RepoSpec("anyrule", root, "git@github.com:carolcheng520/anyrule.git")
+    repo = repo_by_name(root, "anyrule")
     try:
         ensure_repo_shape(repo)
         git(repo, ["fetch", "origin", MAIN_BRANCH])
@@ -303,14 +320,16 @@ def adversarial_check(root: Path) -> int:
     )
 
     tracked_missing: list[str] = []
-    for path in sorted(SKILL_FILES):
+    for path in sorted(SKILL_FILES | REQUIRED_REPO_SCRIPTS):
         result = run_quiet(["git", "ls-files", "--error-unmatch", path], root)
         if result.returncode != 0:
             tracked_missing.append(path)
     failures += print_review(
         "git tracking",
         not tracked_missing,
-        "all skill files are tracked" if not tracked_missing else "untracked: " + ", ".join(tracked_missing),
+        "all skill and required repo files are tracked"
+        if not tracked_missing
+        else "untracked: " + ", ".join(tracked_missing),
     )
 
     skill_md = skill_dir / "SKILL.md"
@@ -405,7 +424,7 @@ def verify_all_synced(repos: list[RepoSpec]) -> None:
 
 
 def run_workflow(root: Path) -> None:
-    anyrule = RepoSpec("anyrule", root, "git@github.com:carolcheng520/anyrule.git")
+    anyrule = repo_by_name(root, "anyrule")
 
     run_generation_phase(
         anyrule,
@@ -457,9 +476,10 @@ def parse_args() -> argparse.Namespace:
 def main() -> int:
     args = parse_args()
     root = anyrule_root()
-    repos = repo_specs(root)
 
     try:
+        validate_repository_inventory(root)
+        repos = repo_specs(root)
         if args.adversarial_check:
             if args.isolated:
                 raise MaintenanceError("--isolated cannot be combined with --adversarial-check")
