@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Unit tests
+        run: python -m unittest discover -s scripts -p 'test_*.py' -v
+      - name: Rule repository validation
+        run: python scripts/validate_rule_repository.py
+      - name: Syntax and whitespace checks
+        run: |
+          python -m py_compile scripts/*.py skill/install_anyrule_maintainer.py skill/anyrule-maintainer/scripts/*.py
+          git diff --check
+      - name: Repository safety checks
+        run: |
+          if grep -R -n -E --exclude-dir=.git -- '-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----' .; then
+            echo 'Private-key PEM block found.' >&2
+            exit 1
+          fi

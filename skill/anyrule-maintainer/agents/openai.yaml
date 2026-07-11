@@ -1,4 +1,4 @@
 interface:
   display_name: "AnyRule Maintainer"
-  short_description: "Update AnyRule and sync four Anywhere repos"
-  default_prompt: "Use $anyrule-maintainer to update AnyRule and safely synchronize all four GitHub repositories."
+  short_description: "Compatibility entry for the anywhere-ops maintainer"
+  default_prompt: "Use $anyrule-maintainer through the canonical anywhere-ops control plane."

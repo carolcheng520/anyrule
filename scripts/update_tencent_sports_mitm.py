@@ -856,7 +856,7 @@ def main() -> int:
     target = repo / TARGET_RELATIVE
 
     try:
-        require_publishable_repo(repo, require_clean=not args.check_only)
+        require_publishable_repo(repo, require_clean=not (args.check_only or args.no_commit))
         temp, upstream, upstream_sha = clone_upstream()
         with temp:
             require_supported_upstream(upstream)
