@@ -82,6 +82,9 @@ class RuleContext:
     mitm_reject_skipped: Counter[str]
     geosite_rules: list[Rule]
     geoip_rules: list[Rule]
+    coverage_mode: str
+    coverage_label: str
+    coverage_sha256: str
 
 
 @dataclass(frozen=True)
@@ -171,6 +174,57 @@ def load_db_rules(rules_db: Path, source: str) -> list[Rule]:
         elif rule_type in {2, 3}:
             rules.append((rule_type, canonical_domain(value)))
     return rules
+
+
+def canonical_rules_sha256(cn_rules: list[Rule], adblock_rules: list[Rule]) -> str:
+    digest = hashlib.sha256()
+    for source, rules in (("CN", cn_rules), ("ADBlock", adblock_rules)):
+        for rule_type, value in sorted(set(rules)):
+            digest.update(f"{source}\t{rule_type}\t{value}\n".encode("utf-8"))
+    return digest.hexdigest()
+
+
+def load_builtin_coverage(args: argparse.Namespace) -> tuple[list[Rule], list[Rule], str, str, str]:
+    local_sources = (args.builtin_cn_source, args.adblock_source)
+    if any(local_sources):
+        if not all(local_sources):
+            raise SystemExit("--builtin-cn-source and --adblock-source must be provided together")
+        if args.rules_db:
+            raise SystemExit("--rules-db cannot be combined with local coverage sources")
+        if not args.coverage_label:
+            raise SystemExit("--coverage-label is required with local coverage sources")
+        require_sources(
+            [
+                ("built-in CN coverage", args.builtin_cn_source),
+                ("built-in ADBlock coverage", args.adblock_source),
+            ]
+        )
+        cn_rules = parse_arrs(
+            args.builtin_cn_source.read_text(encoding="utf-8"),
+            str(args.builtin_cn_source),
+        )
+        adblock_rules = parse_arrs(
+            args.adblock_source.read_text(encoding="utf-8"),
+            str(args.adblock_source),
+        )
+        return (
+            cn_rules,
+            adblock_rules,
+            "exact-snapshot",
+            args.coverage_label,
+            canonical_rules_sha256(cn_rules, adblock_rules),
+        )
+
+    rules_db = args.rules_db or DEFAULT_RULES_DB
+    if not rules_db.is_file():
+        raise SystemExit(f"Rules.db not found: {rules_db}")
+    return (
+        load_db_rules(rules_db, "CN"),
+        load_db_rules(rules_db, "ADBlock"),
+        "legacy-rules-db",
+        str(rules_db),
+        hashlib.sha256(rules_db.read_bytes()).hexdigest(),
+    )
 
 
 def domain_is_covered(domain: str, suffixes: set[str]) -> bool:
@@ -451,21 +505,24 @@ def write_output(path: Path, text: str) -> bool:
 
 
 def load_rule_context(args: argparse.Namespace) -> RuleContext:
-    if not args.rules_db.exists():
-        raise SystemExit(f"Rules.db not found: {args.rules_db}")
-
     sources = load_inputs(args)
     direct_rules = load_direct_baseline_rules(sources.direct)
     mitm_reject_rules, mitm_reject_skipped = load_mitm_reject_rules(sources.mitm_reject)
+    builtin_cn_rules, adblock_rules, coverage_mode, coverage_label, coverage_sha256 = (
+        load_builtin_coverage(args)
+    )
     return RuleContext(
         sources=sources,
-        builtin_cn_rules=load_db_rules(args.rules_db, "CN"),
-        adblock_rules=load_db_rules(args.rules_db, "ADBlock"),
+        builtin_cn_rules=builtin_cn_rules,
+        adblock_rules=adblock_rules,
         direct_rules=direct_rules,
         mitm_reject_rules=mitm_reject_rules,
         mitm_reject_skipped=mitm_reject_skipped,
         geosite_rules=parse_arrs(sources.geosite.text, sources.geosite.label),
         geoip_rules=parse_arrs(sources.geoip.text, sources.geoip.label),
+        coverage_mode=coverage_mode,
+        coverage_label=coverage_label,
+        coverage_sha256=coverage_sha256,
     )
 
 
@@ -499,6 +556,9 @@ def build_generation_result(context: RuleContext) -> GenerationResult:
         source_sha256=context.sources.geosite.sha256,
         skipped=geosite_skipped,
         extra_header_lines=[
+            f"# BUILTIN-COVERAGE-MODE: {context.coverage_mode}",
+            f"# BUILTIN-COVERAGE: {context.coverage_label}",
+            f"# BUILTIN-COVERAGE-SHA256: {context.coverage_sha256}",
             "# EXCLUDED-REJECT-SOURCES:",
             *[
                 f"# - {name}: {source.label}"
@@ -553,7 +613,11 @@ def print_summary(result: GenerationResult, wrote_geosite: bool, wrote_geoip: bo
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--rules-db", type=local_path_arg, default=DEFAULT_RULES_DB)
+    parser.add_argument("--target", choices=("all", "geosite", "geoip"), default="all")
+    parser.add_argument("--rules-db", type=local_path_arg)
+    parser.add_argument("--builtin-cn-source", type=local_path_arg)
+    parser.add_argument("--adblock-source", type=local_path_arg)
+    parser.add_argument("--coverage-label")
     parser.add_argument("--anywhere-rules-root", type=local_path_arg, default=DEFAULT_ANYWHERE_RULES_ROOT)
     parser.add_argument("--geosite-source", type=local_path_arg)
     parser.add_argument("--geoip-source", type=local_path_arg)
@@ -561,10 +625,40 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-def main() -> int:
-    args = parse_args()
+def generate_geoip_only(args: argparse.Namespace) -> GeneratedFile:
+    geoip_source = args.geoip_source or default_geoip_source(args.anywhere_rules_root)
+    require_sources([(GEOIP_SOURCE_NAME, geoip_source)])
+    source = read_source(geoip_source, f"anywhere-rules/rules/common/{GEOIP_SOURCE_NAME}")
+    rules, skipped = generate_geoip_ipv6(parse_arrs(source.text, source.label))
+    validate_geoip_ipv6(rules)
+    text = render_rule_file(
+        purpose="China IPv6 direct-routing CIDR rules generated from GeoIP_CN.",
+        raw_link=GEOIP_RAW_LINK,
+        last_updated=output_last_updated(GEOIP_OUTPUT, rules),
+        name="GeoIP CN IPv6",
+        rules=rules,
+        source_label=source.label,
+        source_sha256=source.sha256,
+        skipped=skipped,
+    )
+    return GeneratedFile(GEOIP_OUTPUT, text, rules, skipped)
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = parse_args(argv)
+    if args.target == "geoip":
+        generated = generate_geoip_only(args)
+        wrote = write_output(generated.path, generated.text)
+        print(f"{'wrote' if wrote else 'unchanged'} {generated.path}")
+        print(f"geoip_rules={len(generated.rules)} type1={len(generated.rules)} skipped={dict(sorted(generated.skipped.items()))}")
+        return 0
+
     result = build_generation_result(load_rule_context(args))
-    wrote_geosite, wrote_geoip = write_generation_result(result)
+    if args.target == "geosite":
+        wrote_geosite = write_output(result.geosite.path, result.geosite.text)
+        wrote_geoip = False
+    else:
+        wrote_geosite, wrote_geoip = write_generation_result(result)
     print_summary(result, wrote_geosite, wrote_geoip)
     return 0
 

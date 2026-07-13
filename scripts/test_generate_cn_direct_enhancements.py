@@ -118,6 +118,52 @@ class GenerateCNDirectEnhancementsTest(unittest.TestCase):
             self.assertTrue(generator.write_output(path, "changed\n"))
             self.assertEqual(path.read_text(encoding="utf-8"), "changed\n")
 
+    def test_local_coverage_requires_both_sources(self) -> None:
+        args = argparse.Namespace(
+            builtin_cn_source=Path("CN.arrs"),
+            adblock_source=None,
+            rules_db=None,
+            coverage_label="AnywhereRules@test",
+        )
+        with self.assertRaises(SystemExit) as raised:
+            generator.load_builtin_coverage(args)
+        self.assertIn("must be provided together", str(raised.exception))
+
+    def test_local_coverage_is_canonical_and_traceable(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            cn = root / "CN.arrs"
+            adblock = root / "ADBlock.arrs"
+            cn.write_text("2, Example.COM\n0, 192.0.2.1\n", encoding="utf-8")
+            adblock.write_text("2, ads.example.com\n", encoding="utf-8")
+            args = argparse.Namespace(
+                builtin_cn_source=cn,
+                adblock_source=adblock,
+                rules_db=None,
+                coverage_label="AnywhereRules@test",
+            )
+
+            cn_rules, adblock_rules, mode, label, digest = generator.load_builtin_coverage(args)
+
+            self.assertEqual(cn_rules, [(2, "example.com"), (0, "192.0.2.1/32")])
+            self.assertEqual(adblock_rules, [(2, "ads.example.com")])
+            self.assertEqual(mode, "exact-snapshot")
+            self.assertEqual(label, "AnywhereRules@test")
+            self.assertEqual(len(digest), 64)
+
+    def test_geoip_only_does_not_require_rules_db(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            source = Path(tmpdir) / "GeoIP_CN.arrs"
+            source.write_text("0, 192.0.2.0/24\n1, 2001:db8::/32\n", encoding="utf-8")
+            args = generator.parse_args(
+                ["--target", "geoip", "--geoip-source", str(source)]
+            )
+
+            generated = generator.generate_geoip_only(args)
+
+            self.assertEqual(generated.rules, [(1, "2001:db8::/32")])
+            self.assertNotIn("BUILTIN-COVERAGE", generated.text)
+
 
 if __name__ == "__main__":
     unittest.main()
