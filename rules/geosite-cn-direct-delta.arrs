@@ -1,10 +1,10 @@
 # PURPOSE: Filtered China geosite direct-routing delta not covered by built-in CN, existing direct rules, ADBlock, or MITM reject routing rules.
 # LINK: https://raw.githubusercontent.com/carolcheng520/anyrule/main/rules/geosite-cn-direct-delta.arrs
-# LAST-UPDATED: 2026-07-15
+# LAST-UPDATED: 2026-07-17
 # SUGGESTED-ACTION: DIRECT
-# RULES: 1620
+# RULES: 1627
 # SOURCE: anywhere-rules/rules/common/Geosite_CN.arrs
-# SOURCE-SHA256: 263e536ce7bdf238a90843c5fb0a8d0a8b45d5fdaf07fe031d7da3a3654c08bd
+# SOURCE-SHA256: 3757375fa4bbbd0c79ea762a59fa244065f72d180cc685151f70a68946b6a31d
 # BUILTIN-COVERAGE-MODE: exact-snapshot
 # BUILTIN-COVERAGE: app-store:com.argsment.Anywhere@1.15(311)
 # BUILTIN-COVERAGE-SHA256: c18acf6af211de1f8177c4dc06721d1ec2137014d23efaae1fbe6c0b7f0b4a0d
@@ -15,7 +15,7 @@
 # - XiaohongshuReject.arrs: anywhere-rules/mitm/XiaohongshuReject.arrs
 # - wechat-ads.arrs: anyrule/rules/wechat-ads.arrs
 # GENERATED-BY: scripts/generate_cn_direct_enhancements.py
-# SKIPPED: adblock-covered=10, baseline-covered=3297
+# SKIPPED: adblock-covered=10, baseline-covered=3298
 
 name = Geosite CN Direct Delta
 2, 100.me
@@ -595,6 +595,7 @@ name = Geosite CN Direct Delta
 2, gamewower.com
 2, gangwan.com
 2, ganjiangvpn.com
+2, gaojidata.com
 2, gaokao.com
 2, gcloudsvcs.com
 2, geekbang.org
@@ -634,6 +635,7 @@ name = Geosite CN Direct Delta
 2, guoocang.com
 2, gvgoo.com
 2, gxxmt.com
+2, gzasc.com
 2, gzcqs.com
 2, gzlzfm.com
 2, gztv.com
@@ -1196,6 +1198,8 @@ name = Geosite CN Direct Delta
 2, quehu.com
 2, quklive.com
 2, qunliao.info
+2, qwapp.top
+2, qwdjapp.com
 2, qweather.com
 2, qweather.net
 2, qweatherapi.com
@@ -1217,6 +1221,7 @@ name = Geosite CN Direct Delta
 2, roborock.com
 2, rock-chips.com
 2, rrmj.plus
+2, rrsp.app
 2, ruiwen.com
 2, runningcheese.com
 2, ruseer.com
@@ -1423,6 +1428,7 @@ name = Geosite CN Direct Delta
 2, weathercn.com
 2, weatherdt.com
 2, weavatar.com
+2, weboss.hk
 2, webportal.top
 2, weixing.com
 2, wenkeju.com
@@ -1520,6 +1526,7 @@ name = Geosite CN Direct Delta
 2, yeyou.com
 2, yeyoucdn.com
 2, ygduoyi.com
+2, yichengwlkj.com
 2, yili.com
 2, yingxiong.com
 2, yingyonghui.com
