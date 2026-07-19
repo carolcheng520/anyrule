@@ -1,10 +1,10 @@
 # PURPOSE: Filtered China geosite direct-routing delta not covered by built-in CN, existing direct rules, ADBlock, or MITM reject routing rules.
 # LINK: https://raw.githubusercontent.com/carolcheng520/anyrule/main/rules/geosite-cn-direct-delta.arrs
-# LAST-UPDATED: 2026-07-17
+# LAST-UPDATED: 2026-07-19
 # SUGGESTED-ACTION: DIRECT
-# RULES: 1627
+# RULES: 1629
 # SOURCE: anywhere-rules/rules/common/Geosite_CN.arrs
-# SOURCE-SHA256: 3757375fa4bbbd0c79ea762a59fa244065f72d180cc685151f70a68946b6a31d
+# SOURCE-SHA256: 759258c080b18e338f94e74a546ec595cce4ec24d3a482f122080636d1a24096
 # BUILTIN-COVERAGE-MODE: exact-snapshot
 # BUILTIN-COVERAGE: app-store:com.argsment.Anywhere@1.15(311)
 # BUILTIN-COVERAGE-SHA256: c18acf6af211de1f8177c4dc06721d1ec2137014d23efaae1fbe6c0b7f0b4a0d
@@ -156,6 +156,7 @@ name = Geosite CN Direct Delta
 2, aocde.com
 2, aoshu.com
 2, api-building.fun
+2, api.blipsandchitz.me
 2, apipost.net
 2, appsimg.com
 2, appvipshop.com
@@ -696,6 +697,7 @@ name = Geosite CN Direct Delta
 2, hqchip.com
 2, hqdoc.com
 2, hqpcb.com
+2, hrsecn.com
 2, hsqh.net
 2, htjsq.com
 2, htjsq.mobi
