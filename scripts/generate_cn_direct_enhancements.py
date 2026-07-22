@@ -38,8 +38,6 @@ LAN_SOURCE_NAME = "Lan.arrs"
 
 DIRECT_BASELINE_FILES = [
     "wechat.arrs",
-    "10086.arrs",
-    "bocchat.arrs",
     "eastmoney.arrs",
     "finance-apps.arrs",
     "direct-app.arrs",

@@ -19,6 +19,15 @@ import generate_cn_direct_enhancements as generator  # noqa: E402
 
 
 class GenerateCNDirectEnhancementsTest(unittest.TestCase):
+    def test_registered_anyrule_direct_baselines_exist(self) -> None:
+        missing = [
+            filename
+            for filename in generator.DIRECT_BASELINE_FILES
+            if not (generator.ANYRULE_RULES_ROOT / filename).is_file()
+        ]
+
+        self.assertEqual(missing, [])
+
     def test_remote_paths_are_rejected_before_loading(self) -> None:
         with self.assertRaises(argparse.ArgumentTypeError):
             generator.local_path_arg("https://example.com/Geosite_CN.arrs")
