@@ -3,6 +3,12 @@
 # LAST-UPDATED: 2026-06-20
 # SUGGESTED-ACTION: DIRECT
 # RULES: 99
+# SOURCE: blackmatrix7/ios_rule_script:rule/Surge/WeChat/WeChat.list@0fa60782abfe70f58da510e90d9086136cf0d855
+# SOURCE-SHA256: 01e55617280a7b03db13397fcd2fe4bb3be559f728145fb1fbb054036d75d0bc
+# SUPPLEMENTAL-SOURCE: chikacya/anywhere-rules:rules/common/WeChat.arrs@915787b43c8309928b93a0ce4e6d806e96b0d89c
+# SUPPLEMENTAL-SOURCE-SHA256: b523a05eeb0fbc39b610d9778ddeef4aa217fe9779eb939a42389b514f5a1106
+# GENERATED-BY: scripts/update_wechat_arrs.py
+# SKIPPED: DOMAIN-KEYWORD=233, IP-ASN=1, USER-AGENT=2
 
 name = WeChat
 2, apd-pcdnwxlogin.teg.tencent-cloud.net
