@@ -1,19 +1,17 @@
 # AnyRule
 
-Personal routing and MITM rule sets for Anywhere, together with the offline
-generators and validators that keep generated rules reproducible.
+Personal MITM and companion REJECT rule sets for Anywhere, together with the
+offline generator and validators that keep generated rules reproducible.
 
 ## Repository layout
 
-- `rules/`: routing rule sets. Files such as `direct-app.arrs` are maintained
-  manually; `geosite-cn-direct-delta.arrs`, `geoip-cn-ipv6.arrs`, and
-  `wechat.arrs` are generator-owned.
+- `rules/`: reviewed companion REJECT rule sets.
 - `mitm/`: MITM rules. `TencentSportsAdBlock.amrs` is generator-owned; other
   files are reviewed and maintained manually.
-- `scripts/`: generators, offline tests, and repository validation.
-- `skill/`: a temporary compatibility copy of the AnyRule maintainer skill.
-  The canonical four-repository control plane is moving to the sibling private
-  `anywhere-ops` repository.
+- `scripts/`: the Tencent Sports generator, offline tests, and repository
+  validation.
+- `skill/`: a policy-free compatibility entrypoint for the canonical
+  `anywhere-ops` control plane.
 
 Do not hand-edit generator-owned output. Update its source inputs or generator,
 run the tests, then regenerate the file.
@@ -30,6 +28,7 @@ PYTHONPYCACHEPREFIX=/private/tmp/anyrule-pycache \
 git diff --check
 ```
 
-The periodic four-repository maintenance workflow is intentionally strict: it
-does not stash, clean, rebase, force-push, or automatically reset managed
-repositories.
+The periodic maintainer updates only `mitm/TencentSportsAdBlock.amrs`.
+Five-repository synchronization and formal-App diagnostics remain separate
+`anywhere-ops` operations. The maintainer does not stash, clean, rebase,
+force-push, or automatically reset owned repositories.
