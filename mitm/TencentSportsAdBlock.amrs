@@ -1,7 +1,9 @@
 # PURPOSE: MITM rules to block Tencent Sports splash, feed, article, widget, VIP popup, task popup, H5 popup, and PageCard ads.
 # LINK: https://raw.githubusercontent.com/carolcheng520/anyrule/main/mitm/TencentSportsAdBlock.amrs
 # SOURCE: https://raw.githubusercontent.com/Hey-sayiwanna/TencentSports-Surge/main/TencentSportsAdBlock.sgmodule
-# LAST-UPDATED: 2026-07-06
+# SOURCE-REVISION: aad85d3669ababee8d64cd6e245b6d0546250bd0
+# SOURCE-SHA256: TencentSportsAdBlock.sgmodule=4987d3d24b0947366e950cbfe06b5d4aecd61b6c6bd258d9fe8a354c0615da75; TencentSportsAdBlock.js=07ce795cb38bbfc77d771c1eefbb70577d49e44d44c071e27b09dd05bad62427; TencentSportsFloatBlock.js=e62e26451ab1f2107d054ab9b311fcdbd13edb3ddedadcec6ef130b3cf9c291f
+# LAST-UPDATED: 2026-07-24
 # SUGGESTED-ACTION: Enable MITM
 # RULES: 10
 # COMPANION-FILES: Standalone. Upstream recommends broad ad-platform and HTTPDNS REJECT modules for pre-roll video ads; they are omitted here because their scope is not Tencent Sports-specific.
