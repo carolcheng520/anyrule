@@ -182,6 +182,13 @@ def canonical_rules_sha256(cn_rules: list[Rule], adblock_rules: list[Rule]) -> s
     return digest.hexdigest()
 
 
+def canonical_rule_union_sha256(rules: list[Rule]) -> str:
+    digest = hashlib.sha256()
+    for rule_type, value in sorted(set(rules)):
+        digest.update(f"{rule_type}\t{value}\n".encode("utf-8"))
+    return digest.hexdigest()
+
+
 def load_builtin_coverage(args: argparse.Namespace) -> tuple[list[Rule], list[Rule], str, str, str]:
     local_sources = (args.builtin_cn_source, args.adblock_source)
     if any(local_sources):
@@ -228,6 +235,14 @@ def load_builtin_coverage(args: argparse.Namespace) -> tuple[list[Rule], list[Ru
 def domain_is_covered(domain: str, suffixes: set[str]) -> bool:
     labels = domain.split(".")
     return any(".".join(labels[index:]) in suffixes for index in range(len(labels)))
+
+
+def domain_suffix_ancestors(suffixes: set[str]) -> set[str]:
+    ancestors: set[str] = set()
+    for suffix in suffixes:
+        labels = suffix.split(".")
+        ancestors.update(".".join(labels[index:]) for index in range(len(labels)))
+    return ancestors
 
 
 def domain_has_suffix(domain: str, suffix: str) -> bool:
@@ -375,6 +390,7 @@ def generate_geosite_delta(
         value for rule_type, value in builtin_cn_rules + direct_rules if rule_type == 2
     }
     adblock_suffixes = {value for rule_type, value in adblock_rules if rule_type == 2}
+    adblock_ancestors = domain_suffix_ancestors(adblock_suffixes)
     mitm_reject_suffixes = {
         value for rule_type, value in mitm_reject_rules if rule_type == 2
     }
@@ -390,6 +406,9 @@ def generate_geosite_delta(
             continue
         if domain_is_covered(value, adblock_suffixes):
             skipped["adblock-covered"] += 1
+            continue
+        if value in adblock_ancestors:
+            skipped["adblock-parent-conflict"] += 1
             continue
         if domain_conflicts_with_suffixes(value, mitm_reject_suffixes):
             skipped["mitm-reject-covered"] += 1
@@ -467,6 +486,7 @@ def validate_geosite_delta(
         value for rule_type, value in builtin_cn_rules + direct_rules if rule_type == 2
     }
     adblock_suffixes = {value for rule_type, value in adblock_rules if rule_type == 2}
+    adblock_ancestors = domain_suffix_ancestors(adblock_suffixes)
     mitm_reject_suffixes = {
         value for rule_type, value in mitm_reject_rules if rule_type == 2
     }
@@ -477,6 +497,11 @@ def validate_geosite_delta(
     adblock_hits = [
         value for _, value in rules if domain_is_covered(value, adblock_suffixes)
     ]
+    adblock_parent_hits = [
+        value
+        for _, value in rules
+        if not domain_is_covered(value, adblock_suffixes) and value in adblock_ancestors
+    ]
     mitm_reject_hits = [
         value for _, value in rules if domain_conflicts_with_suffixes(value, mitm_reject_suffixes)
     ]
@@ -484,6 +509,11 @@ def validate_geosite_delta(
         raise SystemExit("Geosite delta still has baseline-covered domains: " + ", ".join(baseline_hits[:10]))
     if adblock_hits:
         raise SystemExit("Geosite delta still has ADBlock-covered domains: " + ", ".join(adblock_hits[:10]))
+    if adblock_parent_hits:
+        raise SystemExit(
+            "Geosite delta still contains ADBlock parent domains: "
+            + ", ".join(adblock_parent_hits[:10])
+        )
     if mitm_reject_hits:
         raise SystemExit("Geosite delta still conflicts with MITM reject domains: " + ", ".join(mitm_reject_hits[:10]))
 
@@ -557,6 +587,19 @@ def build_generation_result(context: RuleContext) -> GenerationResult:
             f"# BUILTIN-COVERAGE-MODE: {context.coverage_mode}",
             f"# BUILTIN-COVERAGE: {context.coverage_label}",
             f"# BUILTIN-COVERAGE-SHA256: {context.coverage_sha256}",
+            "# DIRECT-BASELINE-SOURCES:",
+            *[
+                f"# - {name}: {source.label}"
+                for name, source in context.sources.direct
+            ],
+            "# DIRECT-BASELINE-RULES-SHA256: "
+            + canonical_rule_union_sha256(
+                [rule for rule in context.direct_rules if rule[0] == 2]
+            ),
+            "# REJECT-BASELINE-RULES-SHA256: "
+            + canonical_rule_union_sha256(
+                [rule for rule in context.mitm_reject_rules if rule[0] == 2]
+            ),
             "# EXCLUDED-REJECT-SOURCES:",
             *[
                 f"# - {name}: {source.label}"

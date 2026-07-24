@@ -28,6 +28,21 @@ class GenerateCNDirectEnhancementsTest(unittest.TestCase):
 
         self.assertEqual(missing, [])
 
+    def test_direct_baseline_registry_includes_all_expected_sources(self) -> None:
+        sources = generator.direct_baseline_sources(Path("/fixtures/Lan.arrs"))
+
+        self.assertEqual(
+            [name for name, _ in sources],
+            [
+                "wechat.arrs",
+                "Lan.arrs",
+                "eastmoney.arrs",
+                "finance-apps.arrs",
+                "direct-app.arrs",
+                "portfolio.arrs",
+            ],
+        )
+
     def test_remote_paths_are_rejected_before_loading(self) -> None:
         with self.assertRaises(argparse.ArgumentTypeError):
             generator.local_path_arg("https://example.com/Geosite_CN.arrs")
@@ -54,7 +69,9 @@ class GenerateCNDirectEnhancementsTest(unittest.TestCase):
     def test_geosite_delta_defends_against_all_exclusion_layers(self) -> None:
         geosite_rules = [
             (2, "baseline.example.com"),
+            (2, "direct.example.com"),
             (2, "adblock.example.com"),
+            (2, "parent.example.com"),
             (2, "ads-img-qc.xhscdn.com"),
             (2, "xhscdn.com"),
             (3, "keyword"),
@@ -63,16 +80,44 @@ class GenerateCNDirectEnhancementsTest(unittest.TestCase):
         output, skipped = generator.generate_geosite_delta(
             geosite_rules,
             builtin_cn_rules=[(2, "baseline.example.com")],
-            direct_rules=[],
-            adblock_rules=[(2, "adblock.example.com")],
+            direct_rules=[(2, "direct.example.com")],
+            adblock_rules=[
+                (2, "adblock.example.com"),
+                (2, "ads.parent.example.com"),
+            ],
             mitm_reject_rules=[(2, "ads-img-qc.xhscdn.com")],
         )
 
         self.assertEqual(output, [(2, "safe.example.com")])
-        self.assertEqual(skipped["baseline-covered"], 1)
+        self.assertEqual(skipped["baseline-covered"], 2)
         self.assertEqual(skipped["adblock-covered"], 1)
+        self.assertEqual(skipped["adblock-parent-conflict"], 1)
         self.assertEqual(skipped["mitm-reject-covered"], 2)
         self.assertEqual(skipped["type3"], 1)
+
+    def test_adblock_exact_match_is_not_double_counted_as_parent(self) -> None:
+        output, skipped = generator.generate_geosite_delta(
+            [(2, "ads.example.com")],
+            builtin_cn_rules=[],
+            direct_rules=[],
+            adblock_rules=[(2, "ads.example.com")],
+            mitm_reject_rules=[],
+        )
+
+        self.assertEqual(output, [])
+        self.assertEqual(skipped, Counter({"adblock-covered": 1}))
+
+    def test_validate_geosite_delta_rejects_adblock_parent_suffix(self) -> None:
+        with self.assertRaises(SystemExit) as raised:
+            generator.validate_geosite_delta(
+                rules=[(2, "example.com")],
+                builtin_cn_rules=[],
+                direct_rules=[],
+                adblock_rules=[(2, "ads.example.com")],
+                mitm_reject_rules=[],
+            )
+
+        self.assertIn("ADBlock parent domains", str(raised.exception))
 
     def test_validate_geosite_delta_rejects_parent_suffix_conflict(self) -> None:
         with self.assertRaises(SystemExit) as raised:
@@ -159,6 +204,21 @@ class GenerateCNDirectEnhancementsTest(unittest.TestCase):
             self.assertEqual(mode, "exact-snapshot")
             self.assertEqual(label, "AnywhereRules@test")
             self.assertEqual(len(digest), 64)
+
+    def test_rule_union_digest_ignores_order_duplicates_and_metadata(self) -> None:
+        first = generator.parse_arrs(
+            "# SOURCE: first\n2, Example.COM\n2, example.com\n2, api.example.com\n",
+            "first.arrs",
+        )
+        second = generator.parse_arrs(
+            "# SOURCE: changed\n2, api.example.com\n2, example.com\n",
+            "second.arrs",
+        )
+
+        self.assertEqual(
+            generator.canonical_rule_union_sha256(first),
+            generator.canonical_rule_union_sha256(second),
+        )
 
     def test_geoip_only_does_not_require_rules_db(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
