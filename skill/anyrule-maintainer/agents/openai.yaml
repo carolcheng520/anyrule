@@ -1,4 +1,0 @@
-interface:
-  display_name: "AnyRule Maintainer"
-  short_description: "Compatibility entry for the anywhere-ops maintainer"
-  default_prompt: "Use $anyrule-maintainer through the canonical anywhere-ops control plane."

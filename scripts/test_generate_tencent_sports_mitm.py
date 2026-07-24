@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -54,6 +56,24 @@ class TencentSportsUpdaterTest(unittest.TestCase):
         broken = candidate.replace("# RULES: 10", "# RULES: 11", 1)
         with self.assertRaises(generator.UpdateError):
             generator.validate_amrs(broken)
+
+    @unittest.skipUnless(shutil.which("node"), "node is required for JavaScript syntax checks")
+    def test_generated_javascript_is_valid(self) -> None:
+        candidate = generator.build_amrs(
+            "2026-07-11",
+            SOURCE_REVISION,
+            SOURCE_HASHES,
+        )
+        for pattern, script in generator.decode_rules(candidate):
+            with self.subTest(pattern=pattern):
+                result = subprocess.run(
+                    ["node", "--check", "-"],
+                    input=script,
+                    text=True,
+                    capture_output=True,
+                    check=False,
+                )
+                self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_generator_has_no_git_or_publication_policy(self) -> None:
         source = Path(generator.__file__).read_text(encoding="utf-8")
